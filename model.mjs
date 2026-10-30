@@ -135,7 +135,7 @@ export function reduce(state, event, now=Date.now()) {
     case 'CHANNEL_SEND': {
       const text=String(event.text||'').trim(); if(!text) return state;
       s.channels[event.channel]??=[];
-      s.channels[event.channel].push({role:'user',text,time:'现在'},{role:'bot',text:(event.channel==='ideas'||event.channel.startsWith('idea-'))?'想法已保存在本机会话中。':'已记录这条演示消息。此连接未接入真实账号，不会发送或读取外部资料。',time:'现在'}); break;
+      s.channels[event.channel].push({role:'user',text,time:'现在'},{role:'bot',text:event.channel==='todo'?'待办已保存在本机会话中。':(event.channel==='ideas'||event.channel.startsWith('idea-'))?'想法已保存在本机会话中。':'已记录这条演示消息。此连接未接入真实账号，不会发送或读取外部资料。',time:'现在'}); break;
     }
     case 'SUPPLEMENT_TASK': {
       const text=String(event.text||'').trim();if(!t||!text)return state;
