@@ -1,0 +1,32 @@
+import {icon} from './icons.mjs';
+import {AGENTS,statusInfo} from './model.mjs';
+import {activityAction} from './activity.mjs';
+const escape=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+export class LiveHanger {
+ constructor({host,drafts,getTask,onSend,onAction,onDismiss,onRestore,onClose}){
+  Object.assign(this,{host,drafts,getTask,onSend,onAction,onDismiss,onRestore,onClose,nodes:new Map(),serial:0});
+  host.innerHTML=`<section class="live-hanger" role="region" aria-label="晾衣架实况窗"><header class="hanger-toolbar"><div><span class="hanger-orbit"></span><strong>任务实况</strong><span class="hanger-count"></span></div><nav aria-label="实况卡片工具"><button data-hanger="restore" class="hanger-restore"></button><button data-hanger="left" aria-label="向左浏览实况卡片">${icon('chevron')}</button><button data-hanger="right" aria-label="向右浏览实况卡片">${icon('chevron')}</button><button data-hanger="close" aria-label="收起实况窗">${icon('close')}</button></nav></header><div class="hanger-stage"><svg class="hanger-rope" viewBox="0 0 1000 48" preserveAspectRatio="none" aria-hidden="true"><path class="rope-shadow" d="M2 10 Q500 54 998 10"/><path class="rope-light" d="M2 9 Q500 53 998 9"/></svg><div class="hanger-scroll" tabindex="0" aria-label="横向浏览悬挂卡片"><div class="hanger-track"></div></div><div class="hanger-empty" hidden>${icon('hanger')}<h2>暂时没有实况卡片</h2><p>任务和历史仍保留，可恢复已隐藏的卡片。</p><button data-hanger="restore" class="empty-restore">恢复已隐藏卡片</button></div></div><footer class="hanger-note">${icon('shield')}移除仅隐藏实况卡片，不取消任务</footer></section>`;
+  this.track=host.querySelector('.hanger-track');this.scroll=host.querySelector('.hanger-scroll');this.scroll.prepend(host.querySelector('.hanger-rope'));
+  host.addEventListener('click',e=>{const b=e.target.closest('[data-hanger]');if(!b)return;const action=b.dataset.hanger,id=b.closest('[data-hanger-task]')?.dataset.hangerTask;
+   if(action==='remove'){this.onDismiss(id);const next=host.querySelector('.hanger-remove')||document.querySelector('#live-summary');next?.focus({preventScroll:true});}
+   else if(action==='restore')this.onRestore();else if(action==='close')this.onClose();
+   else if(action==='left'||action==='right')this.scroll.scrollBy({left:(action==='left'?-1:1)*250,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
+   else if(action==='open'){const task=this.getTask(id);if(task)this.onAction(id,activityAction(task));}
+  });
+  host.addEventListener('input',e=>{if(!e.target.matches('.hanger-input'))return;const id=e.target.closest('[data-hanger-task]').dataset.hangerTask;this.drafts.set(id,e.target.value);e.target.form.querySelector('button').disabled=!e.target.value.trim();});
+  host.addEventListener('submit',e=>{e.preventDefault();const id=e.target.closest('[data-hanger-task]').dataset.hangerTask,input=e.target.querySelector('input'),text=input.value.trim();if(!text||!this.getTask(id))return;this.drafts.set(id,'');input.value='';this.onSend(id,text);});
+ }
+ create(task){const node=document.createElement('article');node.className='hanger-card';node.dataset.hangerTask=task.id;node.innerHTML=`<span class="hanger-clip" aria-hidden="true"><i></i></span><div class="hanger-card-tilt"><header><span class="hanger-agent"><span class="hanger-agent-icon ${escape(task.agent)}">${icon(AGENTS[task.agent].icon)}</span><span>${escape(AGENTS[task.agent].name)}</span></span><button class="hanger-remove" data-hanger="remove" aria-label="从实况移除：${escape(task.title)}" title="仅移除实况卡片，不取消任务">${icon('close')}</button></header><h2 title="${escape(task.title)}">${escape(task.title)}</h2><div class="hanger-status"></div><div class="hanger-progress" aria-hidden="true"><span></span></div><p class="hanger-step"></p><button class="hanger-open" data-hanger="open"></button><form class="hanger-form"><input class="hanger-input" id="hanger-input-${escape(task.id)}" data-mount="${++this.serial}" aria-label="给任务 ${escape(task.title)} 补充指令" placeholder="补充一句，仅此任务…" autocomplete="off"><button type="submit" aria-label="发送此任务补充">${icon('arrow')}</button></form><small class="hanger-feedback"></small></div>`;node.querySelector('input').value=this.drafts.get(task.id)||'';return node;}
+ update({tasks,hiddenCount,open}){
+  this.host.hidden=!open;if(!open)return;
+  const ids=new Set(tasks.map(t=>t.id));for(const [id,node]of this.nodes)if(!ids.has(id)){node.remove();this.nodes.delete(id);}
+  tasks.forEach((task,index)=>{let node=this.nodes.get(task.id);if(!node){node=this.create(task);this.nodes.set(task.id,node);this.track.append(node);}const expected=this.track.children[index];if(expected!==node)this.track.insertBefore(node,expected||null);
+   node.style.setProperty('--hanger-angle',[-1.8,1.2,-.8,1.7,-1.1][index%5]+'deg');const n=tasks.length,x=n>1?index/(n-1)*2-1:0;node.style.setProperty('--rope-drop',Math.round(22*(1-x*x))-5+'px');
+   const [label,color,symbol]=statusInfo(task);node.querySelector('.hanger-status').innerHTML=`<span class="status ${color}">${icon(symbol)}${label}</span>`;node.querySelector('.hanger-progress').className='hanger-progress '+(task.status==='running'||task.status==='resuming'?'is-running':color);node.querySelector('.hanger-step').textContent=task.step||task.detail;node.querySelector('.hanger-step').title=task.step||task.detail;
+   node.querySelector('.hanger-open').innerHTML=icon(activityAction(task).kind==='output'?'editor':activityAction(task).kind==='computer'?'computer':'right')+escape(activityAction(task).label);
+   const input=node.querySelector('input'),draft=this.drafts.get(task.id)||'';if(document.activeElement!==input&&input.value!==draft)input.value=draft;input.form.querySelector('button').disabled=!input.value.trim();node.querySelector('.hanger-feedback').textContent=task.instructions?.length?`已记录 ${task.instructions.length} 条补充`:'补充文字不代表授权';
+  });
+  const rope=this.host.querySelector('.hanger-rope');rope.style.width=this.track.offsetWidth+'px';rope.style.left=this.track.offsetLeft+'px';
+  this.host.querySelector('.hanger-count').textContent=tasks.length+' 项';const restore=this.host.querySelector('.hanger-restore');restore.hidden=!hiddenCount;restore.textContent=`恢复已隐藏 ${hiddenCount}`;this.host.querySelector('.empty-restore').hidden=!hiddenCount;this.host.querySelector('.hanger-empty').hidden=tasks.length>0;this.scroll.hidden=!tasks.length;this.host.querySelector('.hanger-rope').style.opacity=tasks.length?'1':'.3';
+ }
+}
