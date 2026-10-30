@@ -1,4 +1,4 @@
-import {permissionEvent} from './permissions.mjs';
+import {permissionEvent} from './permissions.mjs?v=scope2';
 import {activityRevision,ensureLiveState} from './activity.mjs';
 export const IDEA_NODES=Object.freeze([
  {id:'demo-idea-local-context',name:'构筑本地context'},
