@@ -1,3 +1,4 @@
+import {permissionEvent} from './permissions.mjs';
 import {activityRevision,ensureLiveState} from './activity.mjs';
 export const IDEA_NODES=Object.freeze([
  {id:'demo-idea-local-context',name:'构筑本地context'},
@@ -109,6 +110,7 @@ export function reduce(state, event, now=Date.now()) {
   const t=s.tasks.find(t=>t.id===event.task);
   const cu=s.session;
   switch(event.type) {
+    case 'PERMISSION': if(t){const next=permissionEvent(t,event,now);Object.assign(t,next);}break;
     case 'LIVE_STYLE': if(!['capsule','hanger'].includes(event.style))return state;s.liveStyle=event.style;break;
     case 'DISMISS_LIVE_CARD': if(!t)return state;s.liveDismissals??={};s.liveDismissals[t.id]=activityRevision(t);break;
     case 'RESTORE_LIVE_CARDS': s.liveDismissals={};break;
@@ -174,6 +176,7 @@ export function reduce(state, event, now=Date.now()) {
       }
       const due=s.tasks.filter(t=>t.dueAt && now>=t.dueAt && t.status==='running');
       for(const task of due){
+        if(task.permission&&(task.permission.pending||!task.permission.grants.length||task.permission.expires<=now||["已拒绝","已撤回"].includes(task.permission.reason)))continue;
         if(task.stage==='research'){
           Object.assign(task,{status:'done',step:'模拟研究完成，已交给千问',detail:'研究完成，已交给千问',dueAt:null});
           s.tasks.push({id:`writer-${++s.serial}`,agent:'writer',goal:task.goal,title:'简报：'+task.command.slice(0,18),command:task.command,status:'running',step:'正在把研究结论整理成草稿',detail:'千问 正在整理研究草稿',stage:'writing',dueAt:now+2400,workflow:task.workflow,source:task.source});
