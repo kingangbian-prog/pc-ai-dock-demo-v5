@@ -1,0 +1,4 @@
+import {permissionState,risk} from './permissions.mjs';
+export function taskBucket(t,filter){const blocked=['auth','input','paused','pausing','failed'].includes(t.status)||!!t.permission?.pending||['已拒绝','已撤回'].includes(t.permission?.reason)||(t.permission?.grants?.length&&t.permission.expires<=Date.now());if(filter==='Blocked')return !!blocked;if(filter==='Running')return ['running','resuming'].includes(t.status)&&!blocked;if(filter==='Unread')return t.status==='result'&&t.unread;if(filter==='Pinned')return !!t.pinned;if(filter==='History')return ['done','result'].includes(t.status);return true;}
+export function centerTasks(state,filter='All'){return state.tasks.filter(t=>taskBucket(t,filter)).slice().sort((a,b)=>Number(!!b.pinned)-Number(!!a.pinned));}
+export function securityTasks(state){return state.tasks.slice().sort((a,b)=>({red:0,yellow:1,green:2}[risk(permissionState(a))[0]]-({red:0,yellow:1,green:2}[risk(permissionState(b))[0]])));}

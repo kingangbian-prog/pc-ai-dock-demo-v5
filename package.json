@@ -6,6 +6,6 @@
   "scripts": {
     "start": "node server.mjs",
     "test": "node --test tests/*.test.mjs",
-    "check": "node --check app.mjs && node --check model.mjs && node --check surfaces.mjs && node --check live-card.mjs && node --check icons.mjs && node --check server.mjs && node --check dock-flip.mjs && node --check activity.mjs && node --check live-hanger.mjs && node --check permissions.mjs && node --check permission-view.mjs"
+    "check": "node --check app.mjs && node --check model.mjs && node --check surfaces.mjs && node --check live-card.mjs && node --check icons.mjs && node --check server.mjs && node --check dock-flip.mjs && node --check activity.mjs && node --check live-hanger.mjs && node --check permissions.mjs && node --check permission-view.mjs && node --check centers.mjs"
   }
 }

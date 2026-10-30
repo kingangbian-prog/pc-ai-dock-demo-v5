@@ -143,6 +143,7 @@ export function reduce(state, event, now=Date.now()) {
       message(s,t.goal,'handoff',`${AGENTS[t.agent].name} · ${t.title} 收到模拟补充：${text}`,now);
       break;
     }
+    case 'PIN_TASK': if(t)t.pinned=!t.pinned;break;
     case 'VIEW': break;
     case 'VIEW_OUTPUT': {const o=s.outputs.find(o=>o.id===event.output);const task=s.tasks.find(t=>t.id===o?.task);if(task?.status==='result'&&task.outputId===o.id)task.unread=false;break;}
     case 'DISMISS_TASK_HOVER': if(t)t.hoverHidden=true;break;
