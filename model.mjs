@@ -143,13 +143,13 @@ export function reduce(state, event, now=Date.now()) {
       message(s,t.goal,'handoff',`${AGENTS[t.agent].name} · ${t.title} 收到模拟补充：${text}`,now);
       break;
     }
-    case 'VIEW': if(t?.status==='result') t.unread=false; break;
-    case 'VIEW_OUTPUT': {const o=s.outputs.find(o=>o.id===event.output);const task=s.tasks.find(t=>t.id===o?.task);if(task?.status==='result')task.unread=false;break;}
+    case 'VIEW': break;
+    case 'VIEW_OUTPUT': {const o=s.outputs.find(o=>o.id===event.output);const task=s.tasks.find(t=>t.id===o?.task);if(task?.status==='result'&&task.outputId===o.id)task.unread=false;break;}
     case 'DISMISS_TASK_HOVER': if(t)t.hoverHidden=true;break;
     case 'OPEN_DRAFT': {
       const o=s.outputs.find(o=>o.id===event.output); if(!o)return state;
       s.drafts[o.id]??={title:o.title,text:o.content};
-      const task=s.tasks.find(t=>t.id===o.task); if(task){task.unread=false;task.hoverHidden=false;} break;
+      const task=s.tasks.find(t=>t.id===o.task); if(task){if(task.outputId===o.id)task.unread=false;task.hoverHidden=false;} break;
     }
     case 'EDIT_DRAFT': if(s.drafts[event.id])s.drafts[event.id].text=String(event.text);break;
     case 'AUTHORIZE': if(t?.status==='auth') Object.assign(t,event.allow?{status:'running',stage:'authorization',step:'本次模拟授权已确认，正在整理资料',detail:'已确认授权，正在整理演示资料',dueAt:now+2000}:{status:'paused',step:'你拒绝了本次模拟授权，任务已暂停',detail:'本次模拟授权被拒绝',denied:true});break;
@@ -205,3 +205,5 @@ export function notificationTasks(state){
  const priority={auth:0,input:1,failed:2,result:3};
  return state.tasks.filter(t=>['auth','input','failed'].includes(t.status)||(t.status==='result'&&t.unread)).slice().sort((a,b)=>priority[a.status]-priority[b.status]);
 }
+
+export function goalStatus(state,id){const tasks=state.tasks.filter(t=>t.goal===id);if(tasks.some(t=>['auth','input','pausing'].includes(t.status)||t.permission?.pending))return ['yellow','待确认'];if(tasks.some(t=>t.status==='result'&&t.unread))return ['green','完成，结果待查看'];if(tasks.some(t=>t.status==='failed'))return ['red','执行失败'];if(tasks.some(t=>['running','resuming'].includes(t.status)))return ['blue','运行中'];return ['gray','已完成或暂无待处理结果'];}
