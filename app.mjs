@@ -1,5 +1,3 @@
-import {LiveHanger} from './live-hanger.mjs?v=demo5-1';
-import {activityTasks,activityRepresentatives,hiddenActivityCount} from './activity.mjs?v=demo5-1';
 import {icon} from './icons.mjs?v=demo5-1';
 import {LiveProgressCard} from './live-card.mjs?v=demo5-1';
 import {DockFlip} from './dock-flip.mjs';
@@ -19,7 +17,6 @@ desktop.innerHTML='<div id=desktop-content></div><div id=dock-mount></div>';
 const desktopContent=$('#desktop-content'),dockMount=$('#dock-mount');
 const liveDrafts=new Map();
 const liveCard=new LiveProgressCard({host:$('#live-card-host'),drafts:liveDrafts,getTask:id=>state.tasks.find(t=>t.id===id),onOpen:openTask,onSend:(task,text)=>dispatch({type:'SUPPLEMENT_TASK',task,text})});
-const hanger=new LiveHanger({host:$('#live-hanger-host'),drafts:liveDrafts,getTask:id=>state.tasks.find(t=>t.id===id),onSend:(task,text)=>dispatch({type:'SUPPLEMENT_TASK',task,text}),onDismiss:task=>{dispatch({type:'DISMISS_LIVE_CARD',task});toast('已移除实况卡片 · 任务仍保留，可恢复');},onRestore:()=>dispatch({type:'RESTORE_LIVE_CARDS'}),onClose:()=>{ui.hangerOpen=false;render();$('#live-summary')?.focus();},onAction:(id,action)=>{ui.hangerOpen=false;if(action.kind==='retry'){dispatch({type:'RETRY',task:id});ui.hangerOpen=true;render();}else if(action.kind==='output')openDraft(state.tasks.find(t=>t.id===id).outputId);else if(action.kind==='computer'){showWindow('computer');render();}else openTask(id);}});
 const motionPreference=matchMedia('(prefers-reduced-motion: reduce)');
 const dockFlip=new DockFlip({
  getMode:()=>state.mode,
@@ -58,12 +55,13 @@ function openApp(app){const existing=[...ui.windows.values()].filter(w=>w.app===
 
 function statusBar(){
  const time=new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit',hour12:false});
- return `<header class="systembar"><div class="system-left"><button id="notification-toggle" class="notification-toggle" data-action="notifications" aria-label="查看通知" aria-expanded="${ui.notifications}" aria-controls="notification-panel" title="通知 · ${notificationTasks(state).length} 项待处理">${icon('bell')}${notificationTasks(state).length?`<span class="notification-badge" aria-hidden="true">${notificationTasks(state).length}</span>`:''}</button></div>${liveCapsule()}<div class="system-right"><span class="prototype-dot"></span><span class="prototype-label">本地交互原型 · 所有操作均为模拟</span><span class="system-divider"></span>${icon('wifi')}${icon('battery')}<span class="date">10 月 26 日</span><time>${time}</time><button id="activity-style-toggle" class="activity-style-toggle" data-action="live-style" aria-label="切换为${state.liveStyle==='hanger'?'胶囊':'晾衣架'}实况" title="当前实况样式：${state.liveStyle==='hanger'?'晾衣架':'胶囊'}">${icon(state.liveStyle==='hanger'?'hanger':'capsule')}<span>${state.liveStyle==='hanger'?'晾衣架':'胶囊'}</span></button></div></header>`;
+ return `<header class="systembar"><div class="system-left"><button id="notification-toggle" class="notification-toggle" data-action="notifications" aria-label="查看通知" aria-expanded="${ui.notifications}" aria-controls="notification-panel" title="通知 · ${notificationTasks(state).length} 项待处理">${icon('bell')}${notificationTasks(state).length?`<span class="notification-badge" aria-hidden="true">${notificationTasks(state).length}</span>`:''}</button></div>${liveCapsule()}<div class="system-right"><span class="prototype-dot"></span><span class="prototype-label">本地交互原型 · 所有操作均为模拟</span><span class="system-divider"></span>${icon('wifi')}${icon('battery')}<span class="date">10 月 26 日</span><time>${time}</time></div></header>`;
 }
 function notificationPanel(){if(!ui.notifications)return '';const tasks=notificationTasks(state);return `<aside id="notification-panel" class="notification-panel" role="dialog" aria-modal="false" aria-label="通知"><header><h2 id="notification-heading" tabindex="-1">通知 <span>${tasks.length}</span></h2><button data-action="notifications" aria-label="关闭通知">${icon('close')}</button></header><div class="notification-list">${tasks.length?tasks.map(t=>`<button class="notification-entry" data-action="task" data-task="${t.id}">${appIcon(t.agent,'small')}<span><strong>${esc(t.title)}</strong>${badge(t)}<small>${esc(t.step)}</small></span>${icon('right')}</button>`).join(''):`<div class="notification-empty">${icon('bell')}<h3>暂无待处理通知</h3><p>任务需要确认、补充或有新结果时，会显示在这里。</p></div>`}</div><footer>模拟任务提醒 · 查看不会授权或发布</footer></aside>`;}
 function liveCapsule(){
- const tasks=activityTasks(state),representatives=activityRepresentatives(state);
- if(state.liveStyle==='hanger')return `<button id="live-summary" class="live-hanger-entry" data-action="live-hanger-toggle" aria-label="${ui.hangerOpen?'收起实况窗':'查看实况窗'}" aria-expanded="${ui.hangerOpen}" aria-controls="live-hanger-host"><span class="live-orbit"></span>AI 实况 <span>${tasks.length}</span>${icon('chevron')}</button>`;
+ const priority={auth:0,input:1,result:2,failed:3,running:4,pausing:0,paused:5,resuming:4};
+ const tasks=state.tasks.filter(t=>['auth','input','failed','running','pausing','resuming'].includes(t.status)||(t.status==='result'&&t.unread)).sort((a,b)=>(priority[a.status]??6)-(priority[b.status]??6));
+ const representatives=[];for(const t of tasks)if(!representatives.some(x=>x.agent===t.agent))representatives.push(t);
  return `<aside class="live-capsule ${ui.liveExpanded?'is-expanded':''}" aria-label="AI 实况"><button id="live-summary" class="live-heading" data-action="live-summary" aria-label="${innerWidth<=760?(ui.liveExpanded?'收起 AI 实况状态':'展开 AI 实况状态'):'查看 AI 实况状态'}" ${innerWidth<=760?`aria-expanded="${ui.liveExpanded}" aria-controls="menu-live-items"`:''}><span class="live-orbit"></span><span>AI 实况</span><span class="live-count">${tasks.length}</span>${icon('chevron')}</button><div id="menu-live-items" class="live-items" ${innerWidth<=760&&!ui.liveExpanded?'inert aria-hidden="true"':''}>${representatives.slice(0,5).map(t=>{const [label,color]=statusInfo(t);return `<button id="live-item-${t.id}" class="live-item ${color}" aria-haspopup="dialog" aria-expanded="${liveCard.taskId===t.id}" data-action="task" data-task="${t.id}" aria-label="${esc(AGENTS[t.agent].name+' '+t.title+' '+label)}">${icon(AGENTS[t.agent].icon)}<span>${AGENTS[t.agent].short||'小艺'}${t.status==='result'?'有新结果':t.status==='auth'?'待授权':t.status==='input'?'待补充':t.status==='failed'?'失败':t.status==='pausing'?'待暂停':'进行中'}</span></button>`;}).join('')}</div><button class="live-more" data-action="bot" aria-label="在 Bot 查看全部任务">${icon('right')}</button></aside>`;
 }
 function desktopShortcuts(){const copy=state.mode==='ai'?AI_DESKTOP_COPY:NORMAL_DESKTOP_COPY;return `<nav class="desktop-shortcuts" aria-label="桌面快捷方式"><button data-action="app" data-app="files">${appIcon('files')}<span>我的文件</span></button><button data-action="editor">${appIcon('editor')}<span>新品发布计划</span></button><button data-action="guide">${appIcon('shield')}<span>体验指南</span></button></nav><div class="desktop-signature" data-mode="${state.mode}"><span class="signature-ring">${icon('ring')}</span><p title="${esc(copy)}">${esc(copy)}</p></div>`;}
@@ -119,7 +117,6 @@ function render({forceDock=false}={}){
  const scroll=$('.dock-body');if(scroll){scroll.closest('.dock').classList.toggle('has-overflow',scroll.scrollWidth>scroll.clientWidth+1);scroll.scrollLeft=ui.dockScroll||0;scroll.addEventListener('scroll',()=>{ui.dockScroll=scroll.scrollLeft;syncAgentPreviews();},{passive:true});}
  syncAgentPreviews();
  liveCard.update();
- hanger.update({tasks:activityTasks(state),hiddenCount:hiddenActivityCount(state),open:state.liveStyle==='hanger'&&ui.hangerOpen});
 }
 function syncAgentPreviews(){
  const focused=document.activeElement?.closest?.('.agent-anchor')?.dataset.agentOwner;
@@ -145,8 +142,6 @@ desktop.addEventListener('click',e=>{
  if(dockFlip.active&&b.closest('.dock'))return;
  const launcher=!!b.closest('.dock,.desktop-shortcuts,.launcher');
  if(['bot','computer','app','editor','guide','agent-preview','restore-window','outputs','draft','local-draft'].includes(a))ui.hangerOpen=false;
- if(a==='live-style'){liveCard.dismiss(false);ui.liveExpanded=false;ui.notifications=false;const style=state.liveStyle==='hanger'?'capsule':'hanger';ui.hangerOpen=style==='hanger';dispatch({type:'LIVE_STYLE',style});return;}
- if(a==='live-hanger-toggle'){ui.hangerOpen=!ui.hangerOpen;ui.notifications=false;render();return;}
  if(a==='notifications'){ui.hangerOpen=false;ui.notifications=!ui.notifications;ui.liveExpanded=false;liveCard.dismiss(false);render();if(ui.notifications)$('#notification-heading')?.focus();else $('#notification-toggle')?.focus();return;}
  if(a==='live-summary'){ui.notifications=false;if(innerWidth<=760){ui.liveExpanded=!ui.liveExpanded;render();}else{render();document.querySelector('.live-item')?.focus();}return;}
  if(a==='dock-scroll'){b.closest('.dock').querySelector('.dock-body').scrollBy({left:Number(b.dataset.dir)*250,behavior:'smooth'});return;}
@@ -214,5 +209,4 @@ setInterval(()=>{let next=reduce(state,{type:'TICK'});if(next!==state){const top
 render();
 if($('#conversation-scroll'))$('#conversation-scroll').scrollTop=$('#conversation-scroll').scrollHeight;
 
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&state.liveStyle==='hanger'&&ui.hangerOpen){e.preventDefault();ui.hangerOpen=false;render();$('#live-summary')?.focus();}});
 desktop.addEventListener('pointermove',e=>{const glass=e.target.closest('.ai-dock');if(!glass||motionPreference.matches)return;const r=glass.getBoundingClientRect();glass.style.setProperty('--glass-x',Math.round((e.clientX-r.left)/r.width*100)+'%');},{passive:true});

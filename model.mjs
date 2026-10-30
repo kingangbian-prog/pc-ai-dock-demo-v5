@@ -66,7 +66,7 @@ export const APP_NAMES = {files:'文件',browser:'浏览器',editor:'Office Word
 export const CONNECTIONS = {mail:'邮箱',computer:'Computer Use',wechat:'微信',feishu:'飞书'};
 export function seedState() {
   return ensureAgentDemoTasks({
-    schema:1,liveStyle:'hanger',liveDismissals:{}, ideas:IDEA_NODES.map(i=>({...i})),selectedIdea:null,ideaOpen:false,ideasCollapsed:false,goalsCollapsed:false, connectCollapsed:false, agentIdentityVersion:2, serial:10, mode:'ai', selectedGoal:'desktop',
+    schema:1,liveStyle:'capsule',liveDismissals:{}, ideas:IDEA_NODES.map(i=>({...i})),selectedIdea:null,ideaOpen:false,ideasCollapsed:false,goalsCollapsed:false, connectCollapsed:false, agentIdentityVersion:2, serial:10, mode:'ai', selectedGoal:'desktop',
     goals:[
       {id:'desktop',name:'桌面 AI 体验研究',subtitle:'为下周评审，准备一份有依据的交互简报。',messages:[
         {role:'user',text:'研究桌面 AI 助手的交互方式，整理一份评审简报。',time:'10:20'},
@@ -191,7 +191,7 @@ export function reduce(state, event, now=Date.now()) {
   return s;
 }
 export function loadState(storage) {
-  try{const s=JSON.parse(storage.getItem(STORAGE_KEY));if(s?.schema===1 && Array.isArray(s.tasks)&&Array.isArray(s.goals)&&s.drafts&&s.session){const next=ensureLiveState(ensureIdeaNodes(ensureAgentDemoTasks(migrateAgentIdentity(s))));if(next!==s)saveState(storage,next);return next;}}catch{}
+  try{const s=JSON.parse(storage.getItem(STORAGE_KEY));if(s?.schema===1 && Array.isArray(s.tasks)&&Array.isArray(s.goals)&&s.drafts&&s.session){const next={...ensureLiveState(ensureIdeaNodes(ensureAgentDemoTasks(migrateAgentIdentity(s)))),liveStyle:"capsule",liveDismissals:{}};if(next!==s)saveState(storage,next);return next;}}catch{}
   return seedState();
 }
 export function saveState(storage,state) { try{storage.setItem(STORAGE_KEY,JSON.stringify(state));return true;}catch{return false;} }
