@@ -191,7 +191,7 @@ export function reduce(state, event, now=Date.now()) {
   return s;
 }
 export function loadState(storage) {
-  try{const s=JSON.parse(storage.getItem(STORAGE_KEY));if(s?.schema===1 && Array.isArray(s.tasks)&&Array.isArray(s.goals)&&s.drafts&&s.session){const next={...ensureLiveState(ensureIdeaNodes(ensureAgentDemoTasks(migrateAgentIdentity(s)))),liveStyle:"capsule",liveDismissals:{}};if(next!==s)saveState(storage,next);return next;}}catch{}
+  try{const s=JSON.parse(storage.getItem(STORAGE_KEY));if(s?.schema===1 && Array.isArray(s.tasks)&&Array.isArray(s.goals)&&s.drafts&&s.session){let next=ensureLiveState(ensureIdeaNodes(ensureAgentDemoTasks(migrateAgentIdentity(s))));if(next.liveStyle!=="capsule"||Object.keys(next.liveDismissals).length)next={...next,liveStyle:"capsule",liveDismissals:{}};if(next!==s)saveState(storage,next);return next;}}catch{}
   return seedState();
 }
 export function saveState(storage,state) { try{storage.setItem(STORAGE_KEY,JSON.stringify(state));return true;}catch{return false;} }
