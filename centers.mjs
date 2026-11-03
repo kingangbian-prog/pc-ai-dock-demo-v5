@@ -5,3 +5,5 @@ export function securityTasks(state){return state.tasks.slice().sort((a,b)=>({re
 export const SECURITY_LEVELS=[['All','ALL','所有模拟权限状态'],['safe','安全','有效的本任务只读授权'],['limited','比较安全','尚无有效访问，仅可在确认后执行'],['risk','风险','待确认、已阻止或范围过宽'],['high','高危','涉及对外传输，须逐次确认']];
 export function securityLevel(t){const p=permissionState(t);if(p.pending?.includes('publish'))return 'high';if(p.pending||p.grants.includes('folder')||['已拒绝','已撤回','已到期'].includes(p.reason)||(p.grants.length&&p.expires<=Date.now()))return 'risk';if(risk(p)[0]==='green')return 'safe';return 'limited';}
 export function securityAdvice(t){const p=permissionState(t);if(securityLevel(t)==='high')return '逐次确认对外目标和摘要，不授予持续传输权限。';if(p.grants.includes('folder'))return '收窄为需求简报只读，无需目录写权限。';if(p.pending)return '核对待确认的具体文件，拒绝新增范围仍保留原有效授权。';if(p.expires&&p.expires<=Date.now())return '授权已到期；仅为下一步必要文件重新申请。';return '维持本任务限定只读范围，完成后撤回，无需永久权限。';}
+
+export function initialMonitorFilter(state){return ['Blocked','Running','Unread','Pinned','History'].find(f=>centerTasks(state,f).length)||'Blocked';}
